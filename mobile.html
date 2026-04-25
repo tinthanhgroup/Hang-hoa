@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Hàng hóa – Hyundai Tín Thanh</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+:root {
+  --bg:#f0f4fa; --surface:#fff; --border:#dce3f0;
+  --text:#1a2240; --muted:#6b7a9e; --accent:#2563eb;
+  --blue:#1a4fa0; --blue-mid:#3b6fd4;
+  --c-stock:#1a6fc4; --c-bo:#3ab0e8; --c-lxx:#ef9f27; --c-debt:#e24b4a;
+  --shadow:0 2px 10px rgba(0,0,0,.07);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;}
+
+/* LOADING */
+#loading{position:fixed;inset:0;background:linear-gradient(135deg,#1e3a5f,#2563eb);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:999;transition:opacity .4s;}
+#loading.hidden{opacity:0;pointer-events:none;}
+.load-logo{font-size:20px;font-weight:800;color:#fff;}
+.load-logo span{color:#fbbf24;}
+.load-bar{width:180px;height:3px;background:rgba(255,255,255,.2);border-radius:3px;overflow:hidden;}
+.load-fill{height:100%;background:#fbbf24;border-radius:3px;width:0;transition:width .3s;}
+.load-txt{font-size:11px;color:rgba(255,255,255,.6);}
+
+/* HEADER */
+.header{background:linear-gradient(135deg,#1e3a5f,#2563eb);padding:9px 12px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 10px rgba(37,99,235,.3);}
+.hdr-brand{font-size:14px;font-weight:800;color:#fff;}
+.hdr-brand span{color:#fbbf24;}
+.hdr-time{font-size:9px;color:rgba(255,255,255,.6);font-family:'JetBrains Mono',monospace;margin-top:1px;}
+.btn-refresh{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:6px 11px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;transition:background .2s;}
+.btn-refresh:active{background:rgba(255,255,255,.28);}
+.btn-refresh.loading{opacity:.6;pointer-events:none;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.spin{display:inline-block;animation:spin .7s linear infinite;}
+
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:8px 8px 5px;}
+.kpi{background:var(--surface);border-radius:9px;padding:7px 6px;text-align:center;box-shadow:var(--shadow);border-top:3px solid var(--c);cursor:pointer;transition:transform .12s;}
+.kpi:active{transform:scale(.95);}
+.kpi.active{box-shadow:0 0 0 2px var(--c);}
+.kpi-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:2px;}
+.kpi-val{font-size:22px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--c);line-height:1;}
+
+/* FILTER BAR */
+.filter-bar{padding:0 8px 6px;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;}
+.filter-bar::-webkit-scrollbar{display:none;}
+.fbtn{flex-shrink:0;height:26px;padding:0 9px;border:1.5px solid var(--border);border-radius:13px;background:var(--surface);font-size:11px;font-weight:500;color:var(--muted);cursor:pointer;white-space:nowrap;transition:all .15s;font-family:inherit;}
+.fbtn.active{border-color:var(--accent);background:#eff6ff;color:var(--accent);font-weight:700;}
+
+/* LEGEND */
+.legend{padding:0 8px 5px;display:flex;gap:10px;align-items:center;font-size:10px;color:var(--muted);}
+.ldot{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:3px;}
+
+/* PANELS */
+.panels{padding:0 8px 16px;display:flex;flex-direction:column;gap:6px;}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:var(--shadow);}
+.panel-hdr{padding:7px 10px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;background:#f8fafc;border-bottom:1px solid var(--border);}
+
+/* LEV1 COL HEADER */
+.lev1-col-hdr{display:flex;align-items:center;gap:4px;padding:4px 10px;background:#f4f6fb;border-bottom:1px solid var(--border);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);}
+.ch-name{flex:1;}
+.ch-yr25{width:24px;text-align:right;color:#c0392b;}
+.ch-bars{width:90px;text-align:center;flex-shrink:0;}
+.ch-tot{width:22px;text-align:right;}
+.ch-debt{width:26px;text-align:right;color:var(--c-debt);}
+
+/* DRILL ROWS */
+.drill-row{display:flex;align-items:center;padding:8px 10px;gap:5px;border-bottom:1px solid #f3f4f8;cursor:pointer;border-left:3px solid transparent;transition:background .12s;}
+.drill-row:last-child{border-bottom:none;}
+.drill-row:active{background:#f0f4ff;}
+.drill-row.active{background:#e8f0fc;border-left-color:var(--blue);}
+.dr-name{flex:1;font-size:12px;font-weight:500;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dr-yr25{font-size:11px;font-weight:700;color:#c0392b;width:24px;text-align:right;flex-shrink:0;}
+.dr-bars{display:flex;height:14px;gap:1px;width:90px;flex-shrink:0;}
+.dr-seg{height:100%;border-radius:2px;min-width:1px;}
+.dr-tot{font-size:13px;font-weight:700;width:22px;text-align:right;color:var(--text);flex-shrink:0;}
+.dr-debt{font-size:11px;color:var(--c-debt);font-weight:600;width:26px;text-align:right;flex-shrink:0;}
+
+/* BONUS BADGE */
+.bonus{display:inline-block;font-size:8px;font-weight:700;padding:1px 4px;border-radius:6px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;margin-left:4px;vertical-align:middle;}
+
+/* LEV2 ROWS */
+.lev2-row{display:flex;align-items:center;padding:8px 10px 8px 16px;gap:5px;border-bottom:1px solid #f3f4f8;cursor:pointer;border-left:3px solid transparent;transition:background .12s;}
+.lev2-row:last-child{border-bottom:none;}
+.lev2-row:active{background:#f0f4ff;}
+.lev2-row.active{background:#e8f0fc;border-left-color:var(--blue-mid);}
+.lev2-name{flex:1;font-size:12px;font-weight:500;min-width:0;}
+.lev2-counts{display:flex;gap:3px;align-items:center;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;max-width:160px;}
+.yr-badge{display:inline-block;font-size:9px;font-weight:700;padding:1px 4px;border-radius:6px;white-space:nowrap;margin-left:3px;}
+.yr25{background:#fff3e0;color:#e65100;} .yr26{background:#e3f2fd;color:#0d47a1;} .yr24{background:#f3e5f5;color:#6a1b9a;}
+.vc{font-size:10px;font-weight:700;padding:2px 5px;border-radius:5px;font-family:'JetBrains Mono',monospace;}
+.vc-s{background:#dbeafe;color:#1e40af;} .vc-b{background:#e0f2fe;color:#0369a1;} .vc-l{background:#fef3c7;color:#92400e;} .vc-d{background:#fee2e2;color:#991b1b;}
+
+/* LEV3 TABLE */
+.lev3-inner{padding:8px;overflow-x:auto;}
+.lev3-table{width:100%;border-collapse:collapse;font-size:11px;}
+.lev3-table thead th{padding:5px 5px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);border-bottom:2px solid var(--border);text-align:left;background:#f8fafc;white-space:nowrap;}
+.lev3-table thead th.r{text-align:center;}
+.lev3-table tbody tr{border-bottom:1px solid #f3f4f8;}
+.lev3-table tbody tr:last-child{border:none;}
+.lev3-table tbody td{padding:6px 5px;vertical-align:middle;}
+.lev3-table tbody td.r{text-align:center;}
+.cdot{display:inline-block;width:10px;height:10px;border-radius:50%;border:1px solid rgba(0,0,0,.12);vertical-align:middle;margin-right:4px;}
+.cc{display:inline-block;font-size:9px;font-weight:700;padding:1px 4px;border-radius:5px;white-space:nowrap;font-family:'JetBrains Mono',monospace;}
+.cc-s{background:#dbeafe;color:#1e40af;} .cc-b{background:#e0f2fe;color:#0369a1;} .cc-l{background:#fef3c7;color:#92400e;} .cc-d{background:#fee2e2;color:#991b1b;}
+.kho-chips{display:flex;flex-wrap:wrap;gap:2px;}
+.kchip{font-size:9px;font-weight:600;padding:1px 4px;border-radius:4px;white-space:nowrap;}
+.kchip-s{background:#dbeafe;color:#1e40af;} .kchip-b{background:#e0f2fe;color:#0369a1;} .kchip-l{background:#fef3c7;color:#92400e;} .kchip-d{background:#fee2e2;color:#991b1b;}
+
+/* TOTAL ROW */
+.total-row{display:flex;align-items:center;padding:7px 10px;gap:5px;border-top:2px solid var(--border);background:#f7f8fc;}
+.total-row .dr-name{font-size:11px;font-weight:700;color:#555;}
+
+.empty-panel{padding:20px;text-align:center;color:var(--muted);font-size:11px;}
+
+/* TOAST */
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1a2240;color:#fff;padding:9px 16px;border-radius:9px;font-size:11px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="load-logo">Hyundai <span>Tín Thanh</span></div>
+  <div class="load-bar"><div class="load-fill" id="load-fill"></div></div>
+  <div class="load-txt" id="load-txt">Đang tải dữ liệu...</div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <div class="hdr-brand">Hyundai <span>Tín Thanh</span></div>
+    <div class="hdr-time" id="hdr-time">—</div>
+  </div>
+  <button class="btn-refresh" id="btn-refresh" onclick="loadData()">
+    <span id="ri">↺</span> Cập nhật
+  </button>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+
+  <!-- KPI -->
+  <div class="kpi-row">
+    <div class="kpi" style="--c:var(--c-stock)" id="kpi-stock" onclick="setType('stock')">
+      <div class="kpi-lbl">Tồn kho</div>
+      <div class="kpi-val" id="kv-stock">0</div>
+    </div>
+    <div class="kpi" style="--c:var(--c-bo)" id="kpi-bo" onclick="setType('bo')">
+      <div class="kpi-lbl">BO</div>
+      <div class="kpi-val" id="kv-bo">0</div>
+    </div>
+    <div class="kpi" style="--c:var(--c-lxx)" id="kpi-lxx" onclick="setType('lxx')">
+      <div class="kpi-lbl">Có LXX</div>
+      <div class="kpi-val" id="kv-lxx">0</div>
+    </div>
+    <div class="kpi" style="--c:var(--c-debt)" id="kpi-debt" onclick="setType('debt')">
+      <div class="kpi-lbl">Xe nợ</div>
+      <div class="kpi-val" id="kv-debt">0</div>
+    </div>
+  </div>
+
+  <!-- FILTER -->
+  <div class="filter-bar">
+    <button class="fbtn active" id="fbtn-" onclick="setKho('')">Tất cả</button>
+    <button class="fbtn" id="fbtn-NT" onclick="setKho('NT')">Nha Trang</button>
+    <button class="fbtn" id="fbtn-ĐL" onclick="setKho('ĐL')">Đà Lạt</button>
+    <button class="fbtn" id="fbtn-PY" onclick="setKho('PY')">Phú Yên</button>
+    <button class="fbtn" id="fbtn-PR" onclick="setKho('PR')">Phan Rang</button>
+    <button class="fbtn" id="fbtn-BL" onclick="setKho('BL')">Bảo Lộc</button>
+    <button class="fbtn" id="fbtn-ĐN" onclick="setKho('ĐN')">Đak Nông</button>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <span><span class="ldot" style="background:var(--c-stock)"></span>Tồn kho</span>
+    <span><span class="ldot" style="background:var(--c-bo)"></span>BO</span>
+    <span><span class="ldot" style="background:var(--c-lxx)"></span>Có LXX</span>
+    <span style="color:var(--c-debt)">+N = xe nợ</span>
+  </div>
+
+  <!-- PANELS xếp dọc -->
+  <div class="panels">
+
+    <!-- LEV 1 -->
+    <div class="panel" id="panel-lev1">
+      <div class="panel-hdr" id="lev1-hdr">Lev 1 – Model</div>
+      <div class="lev1-col-hdr">
+        <span class="ch-name"></span>
+        <span class="ch-yr25">'25</span>
+        <span class="ch-bars">Tồn kho &amp; BO</span>
+        <span class="ch-tot">∑</span>
+        <span class="ch-debt">Nợ</span>
+      </div>
+      <div id="lev1-body"></div>
+    </div>
+
+    <!-- LEV 2 -->
+    <div class="panel" id="panel-lev2" style="display:none">
+      <div class="panel-hdr" id="lev2-hdr">Lev 2 – Phiên bản</div>
+      <div id="lev2-body"></div>
+    </div>
+
+    <!-- LEV 3 -->
+    <div class="panel" id="panel-lev3" style="display:none">
+      <div class="panel-hdr" id="lev3-hdr">Lev 3 – Màu sắc · Chi nhánh</div>
+      <div id="lev3-body"></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══ CONFIG ═══
+var GSHEET_URL = 'https://raw.githubusercontent.com/tinthanhgroup/Hang-hoa/main/data.xlsx';
+var MODEL_ORDER = ['Grand i10','Venue','Accent','Elantra','Creta','Tucson','Stargazer','Custin','Santafe','Ioniq','Palisade','Staria'];
+var BRANCHES = ['NT','ĐL','PY','PR','BL','ĐN'];
+var BONUS_MAP = {'Grand i10':1,'Creta':1,'Tucson':1,'Staria':1,'Stargazer':1.25,'Custin':1.25,'Venue':1.25,'Accent':1.25,'Santafe':1.5,'Palisade':1.5,'Elantra':1.5,'Ioniq':1.5};
+
+// ═══ STATE ═══
+var allData = {stock:[],bo:[],lxx:[],debt:[]};
+var khoFilter = '', typeFilter = null;
+var selModel = null, selVersion = null;
+var fileDate = null;
+
+// ═══ HELPERS ═══
+function na2(s){return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[đĐ]/g,'d').toLowerCase().replace(/\s+/g,'');}
+function normModel(m){
+  if(!m) return 'Khác';
+  var ml=m.toString().toLowerCase();
+  if(ml.includes('i10')) return 'Grand i10';
+  if(ml.includes('venue')) return 'Venue';
+  if(ml.includes('accent')) return 'Accent';
+  if(ml.includes('elantra')) return 'Elantra';
+  if(ml.includes('creta')) return 'Creta';
+  if(ml.includes('tucson')) return 'Tucson';
+  if(ml.includes('stargazer')) return 'Stargazer';
+  if(ml.includes('custin')) return 'Custin';
+  if(ml.includes('santa')) return 'Santafe';
+  if(ml.includes('ioniq')) return 'Ioniq';
+  if(ml.includes('palisade')) return 'Palisade';
+  if(ml.includes('staria')) return 'Staria';
+  return m.toString().trim();
+}
+function normMau(mau){
+  if(!mau) return '—';
+  var s=mau.toString().trim(), sl=s.indexOf('/');
+  if(sl>=0) s=s.substring(0,sl).trim();
+  return s||'—';
+}
+function colorDot(mau){
+  if(!mau) return '#ccc';
+  var m=mau.toLowerCase();
+  if(m.includes('trắng')) return '#f0efe8';
+  if(m.includes('đen')) return '#222';
+  if(m.includes('đỏ')) return '#c0392b';
+  if(m.includes('bạc')) return '#b0b0b0';
+  if(m.includes('xanh')) return '#2980b9';
+  if(m.includes('xám')) return '#888';
+  if(m.includes('nâu')||m.includes('cam')) return '#c0792b';
+  if(m.includes('vàng')) return '#e0b020';
+  return '#aaa';
+}
+function khoFromTVBH(t){if(!t)return '';var s=t.toString().trim(),d=s.lastIndexOf('.');return d>=0?s.substring(d+1).toUpperCase():'';}
+function showToast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},3000);}
+function setProgress(pct,txt){document.getElementById('load-fill').style.width=pct+'%';document.getElementById('load-txt').textContent=txt;}
+function pad(n){return String(n).padStart(2,'0');}
+function esc(s){return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+
+// ═══ LOAD DATA ═══
+function loadData(){
+  var btn=document.getElementById('btn-refresh');
+  var ri=document.getElementById('ri');
+  btn.classList.add('loading'); ri.className='spin'; ri.textContent='↺';
+  setProgress(10,'Đang kết nối...');
+  document.getElementById('loading').classList.remove('hidden');
+
+  fetch(GSHEET_URL+'?t='+Date.now(),{redirect:'follow'})
+    .then(function(r){
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      var lm=r.headers.get('Last-Modified');
+      if(lm) fileDate=new Date(lm);
+      setProgress(50,'Đang đọc file...');
+      return r.arrayBuffer();
+    })
+    .then(function(buf){
+      if(buf.byteLength<1000) throw new Error('File lỗi');
+      setProgress(75,'Đang xử lý...');
+      var wb=XLSX.read(new Uint8Array(buf),{type:'array',cellDates:true,raw:true});
+      var sn=wb.SheetNames.find(function(s){var n=na2(s);return n.includes('baocao')||n.includes('bh');})||wb.SheetNames[0];
+      var ws=wb.Sheets[sn];
+      var rawRows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+      parseRows(rawRows);
+      setProgress(100,'Hoàn tất!');
+      if(!fileDate) fileDate=new Date();
+      var t=fileDate;
+      document.getElementById('hdr-time').textContent='Cập nhật: '+pad(t.getDate())+'/'+pad(t.getMonth()+1)+'/'+t.getFullYear()+' '+pad(t.getHours())+':'+pad(t.getMinutes());
+      setTimeout(function(){
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('app').style.display='block';
+        selModel=null; selVersion=null;
+        renderAll();
+      },400);
+    })
+    .catch(function(e){
+      document.getElementById('loading').classList.add('hidden');
+      showToast('❌ Lỗi: '+e.message);
+    })
+    .finally(function(){btn.classList.remove('loading');ri.className='';ri.textContent='↺';});
+}
+
+// ═══ PARSE ═══
+function parseRows(rawRows){
+  var headers=rawRows[0]||[];
+  var hMap={};
+  headers.forEach(function(h,i){if(h!=null) hMap[h.toString().replace(/\s+/g,'')]=i;});
+  function gc(row,name){var idx=hMap[name.replace(/\s+/g,'')];return idx!==undefined?row[idx]:null;}
+
+  allData={stock:[],bo:[],lxx:[],debt:[]};
+
+  rawRows.slice(1).forEach(function(row){
+    if(!row||!row.length) return;
+    var tt=gc(row,'Trạngthái'); if(!tt) return;
+    tt=tt.toString().trim();
+
+    var model=normModel((gc(row,'Model')||'').toString());
+    var phienBan=((gc(row,'Phiênbản')||'').toString().trim())||'—';
+    var mau=normMau((gc(row,'Màu')||'').toString().trim());
+    var namSXRaw=gc(row,'NĂMSX');
+    var namSX=namSXRaw!=null&&namSXRaw!==''?String(Math.round(parseFloat(namSXRaw))||'').replace('NaN',''):'';
+    if(!namSX||namSX==='0') namSX='';
+    var kho=((gc(row,'KHOXE')||'').toString().trim());
+    var ngayPhan=gc(row,'NGÀYPHÂNXE');
+    var ngayCoc=gc(row,'NGÀYĐẶTCỌC');
+    var tvbh=((gc(row,'TVBH')||'').toString().trim());
+    var daly=((gc(row,'Đạilýđặthàng')||'').toString().trim());
+
+    var base={model:model,phienBan:phienBan,mau:mau,namSX:namSX,kho:kho,tvbh:tvbh,ngayCoc:ngayCoc};
+
+    if(tt==='Xe đã về kho'&&!ngayPhan){
+      allData.stock.push(Object.assign({type:'stock'},base));
+    } else if(tt==='DS nợ'){
+      allData.debt.push(Object.assign({type:'debt'},base,{kho:khoFromTVBH(tvbh)||kho}));
+    } else if(tt==='BO'){
+      allData.bo.push(Object.assign({type:'bo'},base,{kho:daly||kho,namSX:namSX||'2026'}));
+    } else if(tt==='LXX'){
+      allData.lxx.push(Object.assign({type:'lxx'},base,{kho:daly||kho}));
+    }
+  });
+}
+
+// ═══ FILTERS ═══
+function setKho(k){
+  khoFilter=k; selModel=null; selVersion=null;
+  document.querySelectorAll('.fbtn').forEach(function(b){b.classList.remove('active');});
+  var el=document.getElementById('fbtn-'+k);
+  if(el) el.classList.add('active');
+  typeFilter=null;
+  updateKpiActive();
+  renderAll();
+}
+
+function setType(t){
+  typeFilter=(typeFilter===t)?null:t;
+  selModel=null; selVersion=null;
+  updateKpiActive();
+  renderAll();
+}
+
+function updateKpiActive(){
+  ['stock','bo','lxx','debt'].forEach(function(x){
+    var el=document.getElementById('kpi-'+x);
+    if(el) el.classList.toggle('active',typeFilter===x);
+  });
+}
+
+function matchFilter(r){
+  if(khoFilter&&r.kho!==khoFilter) return false;
+  return true;
+}
+
+function getSrc(){
+  if(typeFilter==='stock') return allData.stock;
+  if(typeFilter==='bo') return allData.bo;
+  if(typeFilter==='lxx') return allData.lxx;
+  if(typeFilter==='debt') return allData.debt;
+  return allData.stock.concat(allData.bo,allData.lxx,allData.debt);
+}
+
+// ═══ BUILD HIERARCHY ═══
+function buildHierarchy(){
+  var mMap={};
+  getSrc().forEach(function(r){
+    if(!matchFilter(r)) return;
+    var m=r.model;
+    if(!mMap[m]) mMap[m]={name:m,stock:0,bo:0,lxx:0,debt:0,versions:{}};
+    mMap[m][r.type]++;
+    var vKey=r.phienBan+'||'+(r.namSX||'');
+    if(!mMap[m].versions[vKey]) mMap[m].versions[vKey]={name:r.phienBan,namSX:r.namSX||'',stock:0,bo:0,lxx:0,debt:0,colors:{}};
+    mMap[m].versions[vKey][r.type]++;
+    var cKey=r.mau;
+    if(!mMap[m].versions[vKey].colors[cKey]) mMap[m].versions[vKey].colors[cKey]={name:r.mau,stock:0,bo:0,lxx:0,debt:0,byKho:{}};
+    mMap[m].versions[vKey].colors[cKey][r.type]++;
+    var bk=r.kho||'?';
+    if(!mMap[m].versions[vKey].colors[cKey].byKho[bk]) mMap[m].versions[vKey].colors[cKey].byKho[bk]={stock:0,bo:0,lxx:0,debt:0};
+    mMap[m].versions[vKey].colors[cKey].byKho[bk][r.type]++;
+  });
+  var models=Object.values(mMap);
+  models.sort(function(a,b){
+    var ia=MODEL_ORDER.indexOf(a.name),ib=MODEL_ORDER.indexOf(b.name);
+    if(ia<0)ia=999; if(ib<0)ib=999; return ia-ib;
+  });
+  models.forEach(function(m){
+    m.versions=Object.values(m.versions).sort(function(a,b){
+      var nc=a.name.localeCompare(b.name);
+      return nc!==0?nc:String(b.namSX||'').localeCompare(String(a.namSX||''));
+    });
+    m.versions.forEach(function(v){
+      v.colors=Object.values(v.colors).sort(function(a,b){return a.name.localeCompare(b.name);});
+    });
+  });
+  return models;
+}
+
+// ═══ BAR ═══
+function barHTML(stock,bo,lxx,maxV){
+  if(!maxV) maxV=1;
+  var total=stock+bo+lxx;
+  if(!total) return '<div class="dr-bars" style="background:#f0f0f0;border-radius:2px"></div>';
+  function seg(v,c){if(!v)return '';return '<div class="dr-seg" style="width:'+Math.max(Math.round(v/maxV*88),2)+'px;background:'+c+'"></div>';}
+  return '<div class="dr-bars">'+seg(stock,'var(--c-stock)')+seg(bo,'var(--c-bo)')+seg(lxx,'var(--c-lxx)')+'</div>';
+}
+
+// ═══ RENDER ALL ═══
+function renderAll(){
+  function cnt(arr){return arr.filter(matchFilter).length;}
+  document.getElementById('kv-stock').textContent=cnt(allData.stock);
+  document.getElementById('kv-bo').textContent=cnt(allData.bo);
+  document.getElementById('kv-lxx').textContent=cnt(allData.lxx);
+  document.getElementById('kv-debt').textContent=cnt(allData.debt);
+  renderLev1();
+  renderLev2();
+  renderLev3();
+}
+
+// ═══ LEV 1 ═══
+function renderLev1(){
+  var models=buildHierarchy();
+  var mx=1;
+  models.forEach(function(m){var t=m.stock+m.bo+m.lxx;if(t>mx)mx=t;});
+
+  var yr25Map={};
+  allData.stock.concat(allData.bo).forEach(function(r){
+    if(parseInt(r.namSX)===2025&&matchFilter(r)) yr25Map[r.model]=(yr25Map[r.model]||0)+1;
+  });
+
+  var html='';
+  var sumTot=0, sumDebt=0;
+
+  models.forEach(function(m){
+    var tot=m.stock+m.bo+m.lxx;
+    if(!tot&&!m.debt) return;
+    sumTot+=tot; sumDebt+=m.debt;
+    var act=(selModel===m.name);
+    var bonus=BONUS_MAP[m.name];
+    var bonusBadge=bonus?'<span class="bonus">'+(bonus===1?'1tr':bonus===1.25?'1,25tr':'1,5tr')+'</span>':'';
+    var yr25=(yr25Map[m.name]||0);
+    html+='<div class="drill-row'+(act?' active':'')+'" onclick="clickModel(\''+esc(m.name)+'\')">'
+      +'<div class="dr-name">'+m.name+bonusBadge+'</div>'
+      +'<div class="dr-yr25">'+(yr25||'')+'</div>'
+      +barHTML(m.stock,m.bo,m.lxx,mx)
+      +'<div class="dr-tot">'+tot+'</div>'
+      +'<div class="dr-debt">'+(m.debt?'+'+m.debt:'')+'</div>'
+      +'</div>';
+  });
+
+  var totYr25=Object.values(yr25Map).reduce(function(a,b){return a+b;},0);
+  html+='<div class="total-row">'
+    +'<div class="dr-name">Tổng</div>'
+    +'<div class="dr-yr25">'+(totYr25||'')+'</div>'
+    +'<div style="width:90px;flex-shrink:0"></div>'
+    +'<div class="dr-tot" style="color:var(--blue-mid)">'+sumTot+'</div>'
+    +'<div class="dr-debt">'+(sumDebt?'+'+sumDebt:'')+'</div>'
+    +'</div>';
+
+  document.getElementById('lev1-body').innerHTML=html||'<div class="empty-panel">Không có dữ liệu</div>';
+}
+
+// ═══ LEV 2 ═══
+function renderLev2(){
+  var p2=document.getElementById('panel-lev2');
+  if(!selModel){p2.style.display='none';return;}
+
+  var models=buildHierarchy();
+  var m=models.find(function(x){return x.name===selModel;});
+  if(!m){p2.style.display='none';return;}
+
+  document.getElementById('lev2-hdr').textContent='Lev 2 – Phiên bản · '+m.name;
+  p2.style.display='block';
+
+  var html='';
+  m.versions.forEach(function(v){
+    var tot=v.stock+v.bo+v.lxx;
+    if(!tot&&!v.debt) return;
+    var vKey=v.name+'||'+v.namSX;
+    var act=(selVersion===vKey);
+    var yrCls=parseInt(v.namSX)===2025?'yr25':parseInt(v.namSX)===2024?'yr24':parseInt(v.namSX)===2026?'yr26':'';
+    var yrBadge=(v.namSX&&parseInt(v.namSX)!==2026)?'<span class="yr-badge '+yrCls+'">'+v.namSX+'</span>':'';
+    var vc='';
+    if(v.stock) vc+='<span class="vc vc-s">'+v.stock+'</span>';
+    if(v.bo)    vc+='<span class="vc vc-b">BO '+v.bo+'</span>';
+    if(v.lxx)   vc+='<span class="vc vc-l">LXX '+v.lxx+'</span>';
+    if(v.debt)  vc+='<span class="vc vc-d">Nợ '+v.debt+'</span>';
+    html+='<div class="lev2-row'+(act?' active':'')+'" onclick="clickVersion(\''+esc(vKey)+'\')">'
+      +'<div class="lev2-name">'+v.name+yrBadge+'</div>'
+      +'<div class="lev2-counts">'+vc+'</div>'
+      +'</div>';
+  });
+
+  document.getElementById('lev2-body').innerHTML=html||'<div class="empty-panel">Không có dữ liệu</div>';
+}
+
+// ═══ LEV 3 ═══
+function renderLev3(){
+  var p3=document.getElementById('panel-lev3');
+  if(!selModel||!selVersion){p3.style.display='none';return;}
+
+  var models=buildHierarchy();
+  var m=models.find(function(x){return x.name===selModel;});
+  if(!m){p3.style.display='none';return;}
+  var v=m.versions.find(function(x){return (x.name+'||'+x.namSX)===selVersion;});
+  if(!v){p3.style.display='none';return;}
+
+  var verLabel=v.name+(v.namSX&&parseInt(v.namSX)!==2026?' ('+v.namSX+')':'');
+  document.getElementById('lev3-hdr').textContent='Lev 3 – Màu sắc · '+verLabel;
+  p3.style.display='block';
+
+  function khoChips(c,type,cls){
+    var parts=[];
+    BRANCHES.forEach(function(k){
+      var bk=c.byKho[k];
+      if(bk&&bk[type]) parts.push('<span class="kchip kchip-'+cls+'">'+k+' '+bk[type]+'</span>');
+    });
+    return parts.length?'<div class="kho-chips">'+parts.join('')+'</div>':'';
+  }
+
+  var html='<div class="lev3-inner"><table class="lev3-table"><thead><tr>'
+    +'<th>Màu sắc</th>'
+    +'<th class="r" style="color:var(--c-stock)">Tồn</th>'
+    +'<th class="r" style="color:var(--c-bo)">BO</th>'
+    +'<th class="r" style="color:var(--c-lxx)">LXX</th>'
+    +'<th class="r" style="color:var(--c-debt)">Nợ</th>'
+    +'<th>Tồn (kho xe)</th>'
+    +'<th>BO (ĐL đặt)</th>'
+    +'<th>LXX (ĐL đặt)</th>'
+    +'<th>Xe nợ</th>'
+    +'</tr></thead><tbody>';
+
+  v.colors.forEach(function(c){
+    var tot=c.stock+c.bo+c.lxx;
+    if(!tot&&!c.debt) return;
+    html+='<tr>'
+      +'<td><span class="cdot" style="background:'+colorDot(c.name)+'"></span>'+c.name+'</td>'
+      +'<td class="r">'+(c.stock?'<span class="cc cc-s">'+c.stock+'</span>':'')+'</td>'
+      +'<td class="r">'+(c.bo?'<span class="cc cc-b">'+c.bo+'</span>':'')+'</td>'
+      +'<td class="r">'+(c.lxx?'<span class="cc cc-l">'+c.lxx+'</span>':'')+'</td>'
+      +'<td class="r">'+(c.debt?'<span class="cc cc-d">'+c.debt+'</span>':'')+'</td>'
+      +'<td>'+khoChips(c,'stock','s')+'</td>'
+      +'<td>'+khoChips(c,'bo','b')+'</td>'
+      +'<td>'+khoChips(c,'lxx','l')+'</td>'
+      +'<td>'+khoChips(c,'debt','d')+'</td>'
+      +'</tr>';
+  });
+
+  html+='</tbody></table></div>';
+  document.getElementById('lev3-body').innerHTML=html;
+
+  setTimeout(function(){
+    p3.scrollIntoView({behavior:'smooth',block:'start'});
+  },80);
+}
+
+// ═══ CLICK HANDLERS ═══
+function clickModel(name){
+  if(selModel===name){
+    // Tap lại để đóng
+    selModel=null; selVersion=null;
+    document.getElementById('panel-lev2').style.display='none';
+    document.getElementById('panel-lev3').style.display='none';
+    renderLev1();
+    return;
+  }
+  selModel=name; selVersion=null;
+  document.getElementById('panel-lev3').style.display='none';
+  renderLev1();
+  renderLev2();
+  setTimeout(function(){
+    document.getElementById('panel-lev2').scrollIntoView({behavior:'smooth',block:'start'});
+  },80);
+}
+
+function clickVersion(vKey){
+  if(selVersion===vKey){
+    // Tap lại để đóng
+    selVersion=null;
+    document.getElementById('panel-lev3').style.display='none';
+    renderLev2();
+    return;
+  }
+  selVersion=vKey;
+  renderLev2();
+  renderLev3();
+}
+
+// ═══ START ═══
+loadData();
+</script>
+</body>
+</html>
