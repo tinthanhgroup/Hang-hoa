@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upload Data – Hyundai Tín Thanh</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Be Vietnam Pro',sans-serif;background:#f0f4f8;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .card{background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.08);width:100%;max-width:480px;overflow:hidden;}
+  .card-header{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);padding:28px 32px;color:#fff;}
+  .card-header h1{font-size:20px;font-weight:700;margin-bottom:4px;}
+  .card-header p{font-size:13px;opacity:.75;}
+  .card-body{padding:32px;}
+  .section{margin-bottom:20px;}
+  .field-label{font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;}
+  .field-row{display:flex;gap:8px;}
+  .field-row input{flex:1;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none;transition:border .2s;color:#1e293b;}
+  .field-row input:focus{border-color:#2563eb;}
+  .btn-save{padding:10px 16px;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;color:#475569;font-family:inherit;transition:all .2s;}
+  .btn-save:hover{background:#dbeafe;border-color:#93c5fd;color:#1d4ed8;}
+  .hint{font-size:11px;color:#94a3b8;margin-top:6px;}
+  .hint.ok{color:#166534;}
+  .drop-zone{border:2px dashed #cbd5e1;border-radius:12px;padding:40px 24px;text-align:center;cursor:pointer;transition:all .2s;background:#f8fafc;position:relative;}
+  .drop-zone:hover,.drop-zone.dragover{border-color:#2563eb;background:#eff6ff;}
+  .drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+  .drop-icon{font-size:40px;margin-bottom:10px;}
+  .drop-title{font-size:14px;font-weight:600;color:#1e293b;margin-bottom:4px;}
+  .drop-sub{font-size:12px;color:#94a3b8;}
+  .file-info{margin-top:12px;padding:10px 14px;background:#f1f5f9;border-radius:8px;font-size:13px;color:#334155;display:flex;align-items:center;gap:8px;}
+  .fname{font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .fsize{color:#94a3b8;flex-shrink:0;font-size:12px;}
+  .btn-upload{width:100%;padding:13px;border-radius:10px;border:none;font-size:14px;font-weight:700;cursor:pointer;margin-top:16px;font-family:inherit;background:#2563eb;color:#fff;transition:all .2s;letter-spacing:.2px;}
+  .btn-upload:hover{background:#1d4ed8;}
+  .btn-upload:disabled{background:#93c5fd;cursor:not-allowed;}
+  .progress-wrap{margin-top:12px;}
+  .progress-bar{height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden;}
+  .progress-fill{height:100%;background:#2563eb;border-radius:3px;width:0;transition:width .3s;}
+  .progress-label{font-size:11px;color:#64748b;margin-top:5px;text-align:center;}
+  .result{margin-top:12px;padding:12px 16px;border-radius:10px;font-size:13px;font-weight:500;line-height:1.5;}
+  .result.success{background:#dcfce7;color:#166534;border:1px solid #bbf7d0;}
+  .result.error{background:#fee2e2;color:#991b1b;border:1px solid #fecaca;}
+  .divider{border:none;border-top:1px solid #f1f5f9;margin:20px 0;}
+  .link-app{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:#f8fafc;border-radius:10px;text-decoration:none;color:#1e293b;font-size:13px;font-weight:500;border:1px solid #e2e8f0;transition:background .2s;}
+  .link-app:hover{background:#eff6ff;}
+  .link-app-arrow{color:#2563eb;font-size:16px;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-header">
+    <h1>&#128202; Cập nhật dữ liệu</h1>
+    <p>Hyundai Tín Thanh – Báo cáo hàng hóa &amp; bán hàng</p>
+  </div>
+  <div class="card-body">
+
+    <div class="section">
+      <div class="field-label">GitHub Token</div>
+      <div class="field-row">
+        <input type="password" id="tokenInput" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off" onkeydown="if(event.key==='Enter')saveToken()">
+        <button class="btn-save" onclick="saveToken()">Lưu</button>
+      </div>
+      <div class="hint" id="tokenHint">Nhập token rồi bấm Lưu — chỉ cần làm 1 lần trên thiết bị này</div>
+    </div>
+
+    <div class="section">
+      <div class="field-label">File Excel</div>
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".xlsx,.xls">
+        <div class="drop-icon">&#128193;</div>
+        <div class="drop-title">Kéo thả file Excel vào đây</div>
+        <div class="drop-sub">hoặc click để chọn · .xlsx, .xls</div>
+      </div>
+      <div class="file-info" id="fileInfo" style="display:none">
+        <span>&#128196;</span>
+        <span class="fname" id="fileName"></span>
+        <span class="fsize" id="fileSize"></span>
+      </div>
+    </div>
+
+    <button class="btn-upload" id="btnUpload" disabled onclick="uploadFile()">&#8679; Tải lên GitHub</button>
+
+    <div class="progress-wrap" id="progressWrap" style="display:none">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel"></div>
+    </div>
+    <div class="result" id="result" style="display:none"></div>
+
+    <hr class="divider">
+    <a href="index.html" class="link-app">
+      <span>&#128279; Mở báo cáo</span>
+      <span class="link-app-arrow">&#8594;</span>
+    </a>
+  </div>
+</div>
+
+<script>
+var USER='tinthanhgroup', REPO='Hang-hoa', BRANCH='main', PATH='data.xlsx', KEY='ht_gh_token';
+var selectedFile=null;
+
+window.onload=function(){
+  var s=localStorage.getItem(KEY);
+  if(s){ document.getElementById('tokenInput').value=s; setHint(true); }
+};
+
+function setHint(ok){
+  var h=document.getElementById('tokenHint');
+  h.textContent=ok?'✅ Token đã lưu — sẵn sàng tải lên':'Nhập token rồi bấm Lưu — chỉ cần làm 1 lần trên thiết bị này';
+  h.className='hint'+(ok?' ok':'');
+}
+
+function saveToken(){
+  var t=document.getElementById('tokenInput').value.trim();
+  if(!t){ alert('Vui lòng nhập token!'); return; }
+  localStorage.setItem(KEY,t);
+  setHint(true);
+}
+
+var dz=document.getElementById('dropZone');
+dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('dragover');});
+dz.addEventListener('dragleave',function(){dz.classList.remove('dragover');});
+dz.addEventListener('drop',function(e){e.preventDefault();dz.classList.remove('dragover');if(e.dataTransfer.files[0])setFile(e.dataTransfer.files[0]);});
+document.getElementById('fileInput').addEventListener('change',function(){if(this.files[0])setFile(this.files[0]);});
+
+function setFile(f){
+  selectedFile=f;
+  document.getElementById('fileName').textContent=f.name;
+  document.getElementById('fileSize').textContent=(f.size/1024).toFixed(0)+' KB';
+  document.getElementById('fileInfo').style.display='flex';
+  document.getElementById('btnUpload').disabled=false;
+  document.getElementById('result').style.display='none';
+}
+
+function setProgress(pct,label){
+  document.getElementById('progressWrap').style.display='block';
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressLabel').textContent=label;
+}
+
+function showResult(ok,msg){
+  var el=document.getElementById('result');
+  el.style.display='block';
+  el.className='result '+(ok?'success':'error');
+  el.textContent=msg;
+}
+
+async function uploadFile(){
+  var token=localStorage.getItem(KEY)||document.getElementById('tokenInput').value.trim();
+  if(!token){ alert('Vui lòng nhập và lưu GitHub Token trước!'); return; }
+  if(!selectedFile) return;
+  var btn=document.getElementById('btnUpload');
+  btn.disabled=true; btn.textContent='Đang xử lý...';
+  document.getElementById('result').style.display='none';
+  try{
+    setProgress(20,'Đang đọc file...');
+    var base64=await toBase64(selectedFile);
+    setProgress(40,'Kiểm tra phiên bản hiện tại...');
+    var sha=null;
+    try{
+      var gr=await fetch('https://api.github.com/repos/'+USER+'/'+REPO+'/contents/'+PATH+'?ref='+BRANCH,
+        {headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}});
+      if(gr.ok) sha=(await gr.json()).sha;
+    }catch(e){}
+    setProgress(70,'Đang tải lên GitHub...');
+    var now=new Date(), p=function(n){return String(n).padStart(2,'0');};
+    var body={message:'Data '+p(now.getDate())+'/'+p(now.getMonth()+1)+' '+p(now.getHours())+':'+p(now.getMinutes()),content:base64,branch:BRANCH};
+    if(sha) body.sha=sha;
+    var pr=await fetch('https://api.github.com/repos/'+USER+'/'+REPO+'/contents/'+PATH,
+      {method:'PUT',headers:{'Authorization':'token '+token,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},body:JSON.stringify(body)});
+    setProgress(100,'Hoàn thành!');
+    if(pr.ok){
+      showResult(true,'✅ Tải lên thành công! Vào báo cáo và bấm "🔄 Cập nhật data" để xem dữ liệu mới.');
+    }else{
+      var err=await pr.json();
+      if((err.message||'').includes('Bad credentials')){
+        localStorage.removeItem(KEY);
+        showResult(false,'❌ Token không hợp lệ hoặc đã hết hạn. Vui lòng tạo token mới và nhập lại.');
+      } else {
+        showResult(false,'❌ Lỗi: '+(err.message||pr.status));
+      }
+    }
+  }catch(e){ showResult(false,'❌ Lỗi kết nối: '+e.message); }
+  btn.disabled=false; btn.textContent='⬆ Tải lên GitHub';
+  setTimeout(function(){document.getElementById('progressWrap').style.display='none';},2000);
+}
+
+function toBase64(file){
+  return new Promise(function(resolve,reject){
+    var r=new FileReader();
+    r.onload=function(){resolve(r.result.split(',')[1]);};
+    r.onerror=reject;
+    r.readAsDataURL(file);
+  });
+}
+</script>
+</body>
+</html>
