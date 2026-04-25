@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Hàng hóa – Hyundai Tín Thanh</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+:root {
+  --bg: #f0f4fa;
+  --surface: #ffffff;
+  --border: #dce3f0;
+  --text: #1a2240;
+  --muted: #6b7a9e;
+  --accent: #2563eb;
+  --c-stock: #1a6fc4;
+  --c-bo: #3ab0e8;
+  --c-lxx: #ef9f27;
+  --c-debt: #e24b4a;
+  --c-green: #16a34a;
+  --radius: 12px;
+  --shadow: 0 2px 12px rgba(0,0,0,.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: 'Be Vietnam Pro', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── LOADING SCREEN ── */
+#loading {
+  position: fixed; inset: 0;
+  background: linear-gradient(135deg, #1e3a5f, #2563eb);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 20px; z-index: 999;
+  transition: opacity .4s;
+}
+#loading.hidden { opacity: 0; pointer-events: none; }
+.load-logo { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -.5px; }
+.load-logo span { color: #fbbf24; }
+.load-bar { width: 200px; height: 3px; background: rgba(255,255,255,.2); border-radius: 3px; overflow: hidden; }
+.load-fill { height: 100%; background: #fbbf24; border-radius: 3px; width: 0; transition: width .3s; }
+.load-text { font-size: 12px; color: rgba(255,255,255,.6); }
+
+/* ── ROTATE HINT ── */
+#rotate-hint {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(26,34,64,.92);
+  z-index: 998;
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 16px;
+}
+@media (orientation: portrait) {
+  #rotate-hint { display: flex; }
+}
+.rotate-icon { font-size: 48px; animation: rotateAnim 2s ease-in-out infinite; }
+@keyframes rotateAnim {
+  0%,100% { transform: rotate(0deg); }
+  50% { transform: rotate(90deg); }
+}
+.rotate-text { color: #fff; font-size: 15px; font-weight: 600; text-align: center; line-height: 1.5; }
+
+/* ── HEADER ── */
+.header {
+  background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+  padding: 10px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 12px rgba(37,99,235,.35);
+}
+.header-left { display: flex; flex-direction: column; }
+.header-brand { font-size: 15px; font-weight: 800; color: #fff; }
+.header-brand span { color: #fbbf24; }
+.header-time { font-size: 10px; color: rgba(255,255,255,.6); font-family: 'JetBrains Mono', monospace; margin-top: 1px; }
+.btn-refresh {
+  background: rgba(255,255,255,.15);
+  border: 1px solid rgba(255,255,255,.25);
+  color: #fff; border-radius: 8px;
+  padding: 7px 12px; font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; gap: 5px;
+  transition: background .2s;
+}
+.btn-refresh:active { background: rgba(255,255,255,.25); }
+.btn-refresh.loading { opacity: .7; pointer-events: none; }
+.spin { display: inline-block; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── KPI ROW ── */
+.kpi-row {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 6px; padding: 10px 10px 6px;
+}
+.kpi-card {
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 9px 8px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  border-top: 3px solid var(--c);
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+  position: relative;
+  overflow: hidden;
+}
+.kpi-card:active { transform: scale(.96); }
+.kpi-card.active-filter { box-shadow: 0 0 0 2px var(--c), var(--shadow); }
+.kpi-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); margin-bottom: 3px; }
+.kpi-value { font-size: 26px; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: var(--c); line-height: 1; }
+.kpi-pulse { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--c); display: none; }
+.kpi-card.active-filter .kpi-pulse { display: block; animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.3;transform:scale(.5)} }
+
+/* ── FILTERS ── */
+.filter-bar {
+  padding: 0 10px 8px;
+  display: flex; gap: 5px; overflow-x: auto;
+  scrollbar-width: none;
+}
+.filter-bar::-webkit-scrollbar { display: none; }
+.fbtn {
+  flex-shrink: 0;
+  height: 28px; padding: 0 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 14px; background: var(--surface);
+  font-size: 11px; font-weight: 500; color: var(--muted);
+  cursor: pointer; white-space: nowrap;
+  transition: all .15s; font-family: inherit;
+}
+.fbtn.active {
+  border-color: var(--accent);
+  background: #eff6ff; color: var(--accent); font-weight: 700;
+}
+
+/* ── MODEL LIST ── */
+.model-list { padding: 0 10px 16px; display: flex; flex-direction: column; gap: 6px; }
+
+.model-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.model-header {
+  display: flex; align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+  gap: 8px;
+  transition: background .15s;
+}
+.model-header:active { background: #f0f4ff; }
+.model-header.open { background: #f5f8ff; }
+
+.model-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+
+.model-info { flex: 1; min-width: 0; }
+.model-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.model-badges { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
+
+.badge {
+  font-size: 9px; font-weight: 700; padding: 2px 6px;
+  border-radius: 8px; white-space: nowrap;
+}
+.badge-bonus { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+.badge-yr25 { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; }
+
+.model-stats {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0;
+}
+.model-total {
+  font-size: 20px; font-weight: 800; font-family: 'JetBrains Mono', monospace;
+  color: var(--text); line-height: 1;
+}
+.model-mini-bars { display: flex; gap: 2px; align-items: center; }
+.mini-bar { height: 6px; border-radius: 2px; min-width: 3px; }
+
+.model-chevron {
+  font-size: 14px; color: var(--muted);
+  transition: transform .25s;
+  flex-shrink: 0; margin-left: 2px;
+}
+.model-header.open .model-chevron { transform: rotate(90deg); }
+
+/* ── VERSIONS ── */
+.versions-wrap {
+  display: none;
+  border-top: 1px solid var(--border);
+}
+.versions-wrap.open { display: block; }
+
+.version-item {
+  border-bottom: 1px solid #f3f4f8;
+}
+.version-item:last-child { border-bottom: none; }
+
+.version-header {
+  display: flex; align-items: center;
+  padding: 9px 12px 9px 44px;
+  cursor: pointer;
+  gap: 6px;
+  transition: background .15s;
+  background: #fafbff;
+}
+.version-header:active { background: #eff4ff; }
+.version-header.open { background: #eef3ff; }
+
+.version-name { flex: 1; font-size: 12px; font-weight: 600; color: var(--text); }
+.version-yr { font-size: 10px; padding: 1px 5px; border-radius: 6px; }
+.yr25 { background: #fff3e0; color: #e65100; }
+.yr24 { background: #f3e5f5; color: #6a1b9a; }
+.yr26 { background: #e3f2fd; color: #0d47a1; }
+
+.version-counts {
+  display: flex; gap: 4px; align-items: center;
+}
+.vc {
+  font-size: 11px; font-weight: 700; padding: 2px 6px;
+  border-radius: 6px; font-family: 'JetBrains Mono', monospace;
+}
+.vc-stock { background: #dbeafe; color: #1e40af; }
+.vc-bo    { background: #e0f2fe; color: #0369a1; }
+.vc-lxx   { background: #fef3c7; color: #92400e; }
+.vc-debt  { background: #fee2e2; color: #991b1b; }
+
+.version-chevron { font-size: 12px; color: var(--muted); transition: transform .2s; }
+.version-header.open .version-chevron { transform: rotate(90deg); }
+
+/* ── COLORS TABLE ── */
+.colors-wrap {
+  display: none;
+  padding: 6px 12px 10px 44px;
+  background: #f7f9ff;
+}
+.colors-wrap.open { display: block; }
+
+.color-row {
+  display: flex; align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #eff2fb;
+  gap: 8px;
+}
+.color-row:last-child { border: none; }
+.color-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 1px solid rgba(0,0,0,.12); flex-shrink: 0;
+}
+.color-name { font-size: 12px; font-weight: 500; flex: 1; min-width: 0; }
+.color-counts { display: flex; gap: 3px; align-items: center; flex-shrink: 0; }
+.color-detail {
+  font-size: 10px; color: var(--muted);
+  margin-top: 3px; padding-left: 20px;
+  line-height: 1.6;
+}
+.kho-chip {
+  display: inline-block; font-size: 10px; font-weight: 600;
+  padding: 1px 5px; border-radius: 4px; margin: 1px;
+}
+.kho-stock { background: #dbeafe; color: #1e40af; }
+.kho-bo    { background: #e0f2fe; color: #0369a1; }
+.kho-lxx   { background: #fef3c7; color: #92400e; }
+.kho-debt  { background: #fee2e2; color: #991b1b; }
+
+/* ── EMPTY ── */
+.empty-state {
+  text-align: center; padding: 48px 24px;
+  color: var(--muted); font-size: 13px;
+}
+.empty-icon { font-size: 36px; margin-bottom: 10px; }
+
+/* ── SUMMARY ROW ── */
+.summary-row {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  box-shadow: var(--shadow);
+  display: flex; align-items: center; justify-content: space-between;
+  border: 1px solid var(--border);
+}
+.summary-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.summary-nums { display: flex; gap: 8px; }
+.summary-num { font-size: 13px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+
+/* ── SECTION HEADER ── */
+.section-hdr {
+  padding: 6px 10px 4px;
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .5px;
+  color: var(--muted);
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+/* ── ERROR TOAST ── */
+.toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: #1a2240; color: #fff;
+  padding: 10px 18px; border-radius: 10px;
+  font-size: 12px; font-weight: 500;
+  box-shadow: 0 4px 20px rgba(0,0,0,.25);
+  z-index: 9999;
+  opacity: 0; transition: opacity .3s;
+  pointer-events: none; white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="load-logo">Hyundai <span>Tín Thanh</span></div>
+  <div class="load-bar"><div class="load-fill" id="load-fill"></div></div>
+  <div class="load-text" id="load-text">Đang tải dữ liệu...</div>
+</div>
+
+<!-- ROTATE HINT -->
+<div id="rotate-hint">
+  <div class="rotate-icon">📱</div>
+  <div class="rotate-text">Xoay điện thoại nằm ngang<br>để xem báo cáo tốt hơn</div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="header-brand">Hyundai <span>Tín Thanh</span></div>
+    <div class="header-time" id="hdr-time">—</div>
+  </div>
+  <button class="btn-refresh" id="btn-refresh" onclick="loadData()">
+    <span id="refresh-icon">↺</span> Cập nhật
+  </button>
+</div>
+
+<!-- APP CONTENT -->
+<div id="app" style="display:none">
+
+  <!-- KPI -->
+  <div class="kpi-row">
+    <div class="kpi-card" style="--c:var(--c-stock)" onclick="setTypeFilter('stock')" id="kpi-stock">
+      <div class="kpi-pulse"></div>
+      <div class="kpi-label">Tồn kho</div>
+      <div class="kpi-value" id="kv-stock">0</div>
+    </div>
+    <div class="kpi-card" style="--c:var(--c-bo)" onclick="setTypeFilter('bo')" id="kpi-bo">
+      <div class="kpi-pulse"></div>
+      <div class="kpi-label">BO</div>
+      <div class="kpi-value" id="kv-bo">0</div>
+    </div>
+    <div class="kpi-card" style="--c:var(--c-lxx)" onclick="setTypeFilter('lxx')" id="kpi-lxx">
+      <div class="kpi-pulse"></div>
+      <div class="kpi-label">Có LXX</div>
+      <div class="kpi-value" id="kv-lxx">0</div>
+    </div>
+    <div class="kpi-card" style="--c:var(--c-debt)" onclick="setTypeFilter('debt')" id="kpi-debt">
+      <div class="kpi-pulse"></div>
+      <div class="kpi-label">Xe nợ</div>
+      <div class="kpi-value" id="kv-debt">0</div>
+    </div>
+  </div>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar" id="filter-bar">
+    <button class="fbtn active" onclick="setKhoFilter('')" id="fbtn-all">Tất cả</button>
+    <button class="fbtn" onclick="setKhoFilter('NT')" id="fbtn-NT">Nha Trang</button>
+    <button class="fbtn" onclick="setKhoFilter('ĐL')" id="fbtn-ĐL">Đà Lạt</button>
+    <button class="fbtn" onclick="setKhoFilter('PY')" id="fbtn-PY">Phú Yên</button>
+    <button class="fbtn" onclick="setKhoFilter('PR')" id="fbtn-PR">Phan Rang</button>
+    <button class="fbtn" onclick="setKhoFilter('BL')" id="fbtn-BL">Bảo Lộc</button>
+    <button class="fbtn" onclick="setKhoFilter('ĐN')" id="fbtn-ĐN">Đak Nông</button>
+  </div>
+
+  <!-- SECTION HEADER -->
+  <div class="section-hdr">
+    <span id="section-label">Danh sách hàng hóa</span>
+    <span id="section-count" style="color:var(--accent);font-weight:800;font-size:11px;"></span>
+  </div>
+
+  <!-- MODEL LIST -->
+  <div class="model-list" id="model-list"></div>
+
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════
+var GSHEET_URL = 'https://raw.githubusercontent.com/tinthanhgroup/Hang-hoa/main/data.xlsx';
+var MODEL_ORDER = ['Grand i10','Venue','Accent','Elantra','Creta','Tucson','Stargazer','Custin','Santafe','Ioniq','Palisade','Staria'];
+var BRANCHES = ['NT','ĐL','PY','PR','BL','ĐN'];
+var KHO_LABEL = {NT:'NT',ĐL:'ĐL',DL:'ĐL',PY:'PY',PR:'PR',BL:'BL',ĐN:'ĐN',DN:'ĐN'};
+var MODEL_EMOJI = {
+  'Grand i10':'🚙','Venue':'🚗','Accent':'🚗','Elantra':'🚗',
+  'Creta':'🚙','Tucson':'🚙','Stargazer':'🚐','Custin':'🚐',
+  'Santafe':'🚙','Ioniq':'⚡','Palisade':'🏎','Staria':'🚌'
+};
+var MODEL_COLOR = {
+  'Grand i10':'#3b82f6','Venue':'#8b5cf6','Accent':'#2563eb',
+  'Elantra':'#0891b2','Creta':'#10b981','Tucson':'#f59e0b',
+  'Stargazer':'#8b5cf6','Custin':'#ec4899','Santafe':'#e11d48',
+  'Ioniq':'#06b6d4','Palisade':'#dc2626','Staria':'#6366f1'
+};
+var BONUS_MAP = {
+  'Grand i10':1,'Creta':1,'Tucson':1,'Staria':1,
+  'Stargazer':1.25,'Custin':1.25,'Venue':1.25,'Accent':1.25,
+  'Santafe':1.5,'Palisade':1.5,'Elantra':1.5,'Ioniq':1.5
+};
+
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
+var allData = {stock:[],bo:[],lxx:[],debt:[]};
+var khoFilter = '';
+var typeFilter = null;
+var fileDate = null;
+var openModels = {};
+var openVersions = {};
+
+// ════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════
+function na2(s) { return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[đĐ]/g,'d').toLowerCase().replace(/\s+/g,''); }
+function normModel(m) {
+  if(!m||m==='nan'||m==='null') return 'Khác';
+  var ml = m.toString().toLowerCase();
+  if(ml.includes('i10')) return 'Grand i10';
+  if(ml.includes('venue')) return 'Venue';
+  if(ml.includes('accent')) return 'Accent';
+  if(ml.includes('elantra')) return 'Elantra';
+  if(ml.includes('creta')) return 'Creta';
+  if(ml.includes('tucson')) return 'Tucson';
+  if(ml.includes('stargazer')) return 'Stargazer';
+  if(ml.includes('custin')) return 'Custin';
+  if(ml.includes('santa')) return 'Santafe';
+  if(ml.includes('ioniq')) return 'Ioniq';
+  if(ml.includes('palisade')) return 'Palisade';
+  if(ml.includes('staria')) return 'Staria';
+  return m.toString().trim();
+}
+function normMau(mau) {
+  if(!mau) return '—';
+  var s = mau.toString().trim();
+  var sl = s.indexOf('/');
+  if(sl >= 0) s = s.substring(0, sl).trim();
+  return s || '—';
+}
+function colorDot(mau) {
+  if(!mau) return '#ccc';
+  var m = mau.toLowerCase();
+  if(m.includes('trắng')) return '#f0efe8';
+  if(m.includes('đen')) return '#222';
+  if(m.includes('đỏ')) return '#c0392b';
+  if(m.includes('bạc')) return '#b0b0b0';
+  if(m.includes('xanh')) return '#2980b9';
+  if(m.includes('xám')) return '#888';
+  if(m.includes('nâu')||m.includes('cam')) return '#c0792b';
+  if(m.includes('vàng')) return '#e0b020';
+  return '#aaa';
+}
+function khoFromTVBH(t) {
+  if(!t) return '';
+  var s = t.toString().trim();
+  var dot = s.lastIndexOf('.');
+  return dot >= 0 ? s.substring(dot+1).toUpperCase() : '';
+}
+
+function showToast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(function(){ el.classList.remove('show'); }, 3000);
+}
+
+function setProgress(pct, text) {
+  document.getElementById('load-fill').style.width = pct + '%';
+  document.getElementById('load-text').textContent = text;
+}
+
+// ════════════════════════════════════════
+// LOAD DATA
+// ════════════════════════════════════════
+function loadData() {
+  var btn = document.getElementById('btn-refresh');
+  var icon = document.getElementById('refresh-icon');
+  btn.classList.add('loading');
+  icon.className = 'spin';
+  icon.textContent = '↺';
+
+  document.getElementById('load-fill').style.width = '20%';
+  document.getElementById('load-text').textContent = 'Đang kết nối...';
+  document.getElementById('loading').classList.remove('hidden');
+
+  fetch(GSHEET_URL + '?t=' + Date.now(), {redirect:'follow'})
+    .then(function(r) {
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      var lm = r.headers.get('Last-Modified');
+      if(lm) fileDate = new Date(lm);
+      setProgress(50, 'Đang đọc file...');
+      return r.arrayBuffer();
+    })
+    .then(function(buf) {
+      if(buf.byteLength < 1000) throw new Error('File lỗi hoặc quá nhỏ');
+      setProgress(75, 'Đang xử lý dữ liệu...');
+      var wb = XLSX.read(new Uint8Array(buf), {type:'array', cellDates:true, raw:true});
+      var sn = wb.SheetNames.find(function(s){
+        var n = na2(s);
+        return n.includes('baocao') || n.includes('bh');
+      }) || wb.SheetNames[0];
+      var ws = wb.Sheets[sn];
+      var rawRows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:null});
+      parseRows(rawRows);
+      setProgress(100, 'Hoàn tất!');
+      if(!fileDate) fileDate = new Date();
+      updateHeader();
+      setTimeout(function(){
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('app').style.display = 'block';
+        renderAll();
+      }, 400);
+    })
+    .catch(function(e) {
+      document.getElementById('loading').classList.add('hidden');
+      showToast('❌ Lỗi tải dữ liệu: ' + e.message);
+    })
+    .finally(function(){
+      btn.classList.remove('loading');
+      icon.className = '';
+      icon.textContent = '↺';
+    });
+}
+
+// ════════════════════════════════════════
+// PARSE
+// ════════════════════════════════════════
+function parseRows(rawRows) {
+  var headers = rawRows[0] || [];
+  var hMap = {};
+  headers.forEach(function(h, i) { if(h != null) hMap[h.toString().replace(/\s+/g,'')] = i; });
+
+  function gc(row, name) {
+    var idx = hMap[name.replace(/\s+/g,'')];
+    return idx !== undefined ? row[idx] : null;
+  }
+
+  allData = {stock:[], bo:[], lxx:[], debt:[]};
+
+  rawRows.slice(1).forEach(function(row) {
+    if(!row || !row.length) return;
+    var tt = gc(row, 'Trạngthái'); if(!tt) return;
+    tt = tt.toString().trim();
+
+    var model = normModel((gc(row,'Model')||'').toString());
+    var phienBan = ((gc(row,'Phiênbản')||'').toString().trim()) || '—';
+    var mau = normMau((gc(row,'Màu')||'').toString().trim());
+    var namSXRaw = gc(row,'NĂMSX');
+    var namSX = namSXRaw != null && namSXRaw !== '' ? String(Math.round(parseFloat(namSXRaw))||'').replace('NaN','') : '';
+    if(!namSX || namSX==='0') namSX = '';
+    var kho = ((gc(row,'KHOXE')||'').toString().trim());
+    var soKhung = ((gc(row,'Sốkhung')||'').toString().trim());
+    if(soKhung==='null'||soKhung==='NaN') soKhung = '';
+    var ngayCoc = gc(row,'NGÀYĐẶTCỌC');
+    var tvbh = ((gc(row,'TVBH')||'').toString().trim());
+    var daly = ((gc(row,'Đạilýđặthàng')||'').toString().trim());
+
+    var base = {model:model, phienBan:phienBan, mau:mau, namSX:namSX, kho:kho, soKhung:soKhung, tvbh:tvbh};
+
+    if(tt === 'Xe đã về kho') {
+      allData.stock.push(Object.assign({type:'stock'}, base));
+    } else if(tt === 'DS nợ') {
+      allData.debt.push(Object.assign({type:'debt'}, base, {kho: khoFromTVBH(tvbh)||kho, ngayCoc:ngayCoc}));
+    } else if(tt === 'BO') {
+      allData.bo.push(Object.assign({type:'bo'}, base, {kho: daly||kho, namSX: namSX||'2026'}));
+    } else if(tt === 'LXX') {
+      allData.lxx.push(Object.assign({type:'lxx'}, base, {kho: daly||kho}));
+    }
+  });
+}
+
+// ════════════════════════════════════════
+// FILTERS
+// ════════════════════════════════════════
+function setKhoFilter(k) {
+  khoFilter = k;
+  typeFilter = null;
+  document.querySelectorAll('.fbtn').forEach(function(b){ b.classList.remove('active'); });
+  var id = k ? 'fbtn-' + k : 'fbtn-all';
+  var el = document.getElementById(id);
+  if(el) el.classList.add('active');
+  updateKPIActive();
+  renderAll();
+}
+
+function setTypeFilter(t) {
+  typeFilter = (typeFilter === t) ? null : t;
+  updateKPIActive();
+  renderAll();
+}
+
+function updateKPIActive() {
+  ['stock','bo','lxx','debt'].forEach(function(t){
+    var el = document.getElementById('kpi-' + t);
+    if(el) el.classList.toggle('active-filter', typeFilter === t);
+  });
+}
+
+function matchFilter(r) {
+  if(khoFilter && r.kho !== khoFilter) return false;
+  return true;
+}
+
+// ════════════════════════════════════════
+// BUILD HIERARCHY
+// ════════════════════════════════════════
+function buildHierarchy() {
+  var mMap = {};
+
+  function addArr(arr) {
+    arr.forEach(function(r) {
+      if(!matchFilter(r)) return;
+      var m = r.model;
+      if(!mMap[m]) mMap[m] = {name:m, stock:0, bo:0, lxx:0, debt:0, versions:{}};
+      mMap[m][r.type]++;
+      var vKey = r.phienBan + '||' + (r.namSX||'');
+      if(!mMap[m].versions[vKey]) mMap[m].versions[vKey] = {name:r.phienBan, namSX:r.namSX||'', stock:0, bo:0, lxx:0, debt:0, colors:{}};
+      mMap[m].versions[vKey][r.type]++;
+      var cKey = r.mau;
+      if(!mMap[m].versions[vKey].colors[cKey]) mMap[m].versions[vKey].colors[cKey] = {name:r.mau, stock:0, bo:0, lxx:0, debt:0, byKho:{}};
+      mMap[m].versions[vKey].colors[cKey][r.type]++;
+      var khoKey = (r.kho||'?');
+      if(!mMap[m].versions[vKey].colors[cKey].byKho[khoKey]) mMap[m].versions[vKey].colors[cKey].byKho[khoKey] = {stock:0,bo:0,lxx:0,debt:0};
+      mMap[m].versions[vKey].colors[cKey].byKho[khoKey][r.type]++;
+    });
+  }
+
+  // If typeFilter active, only show that type
+  if(typeFilter === 'stock') { addArr(allData.stock); }
+  else if(typeFilter === 'bo') { addArr(allData.bo); }
+  else if(typeFilter === 'lxx') { addArr(allData.lxx); }
+  else if(typeFilter === 'debt') { addArr(allData.debt); }
+  else { addArr(allData.stock); addArr(allData.bo); addArr(allData.lxx); addArr(allData.debt); }
+
+  var models = Object.values(mMap);
+  models.sort(function(a,b){
+    var ia = MODEL_ORDER.indexOf(a.name), ib = MODEL_ORDER.indexOf(b.name);
+    if(ia < 0) ia = 999; if(ib < 0) ib = 999;
+    return ia - ib;
+  });
+  models.forEach(function(m){
+    m.versions = Object.values(m.versions).sort(function(a,b){
+      var nc = a.name.localeCompare(b.name);
+      if(nc !== 0) return nc;
+      return String(b.namSX||'').localeCompare(String(a.namSX||''));
+    });
+    m.versions.forEach(function(v){
+      v.colors = Object.values(v.colors).sort(function(a,b){ return a.name.localeCompare(b.name); });
+    });
+  });
+  return models;
+}
+
+// ════════════════════════════════════════
+// RENDER
+// ════════════════════════════════════════
+function updateHeader() {
+  if(!fileDate) return;
+  var p = function(n){ return String(n).padStart(2,'0'); };
+  var str = p(fileDate.getDate()) + '/' + p(fileDate.getMonth()+1) + '/' + fileDate.getFullYear()
+          + ' ' + p(fileDate.getHours()) + ':' + p(fileDate.getMinutes());
+  document.getElementById('hdr-time').textContent = 'Cập nhật: ' + str;
+}
+
+function renderAll() {
+  // Update KPIs
+  function countWithFilter(arr) {
+    return arr.filter(function(r){ return matchFilter(r); }).length;
+  }
+  document.getElementById('kv-stock').textContent = countWithFilter(allData.stock);
+  document.getElementById('kv-bo').textContent    = countWithFilter(allData.bo);
+  document.getElementById('kv-lxx').textContent   = countWithFilter(allData.lxx);
+  document.getElementById('kv-debt').textContent  = countWithFilter(allData.debt);
+
+  var models = buildHierarchy();
+  var totalCars = models.reduce(function(s,m){ return s + m.stock + m.bo + m.lxx; }, 0);
+  var totalDebt = models.reduce(function(s,m){ return s + m.debt; }, 0);
+
+  var typeLabels = {stock:'Xe tồn kho',bo:'Xe BO',lxx:'Xe có LXX',debt:'Xe nợ khách'};
+  document.getElementById('section-label').textContent = typeFilter ? typeLabels[typeFilter] : 'Danh sách hàng hóa';
+  document.getElementById('section-count').textContent = models.length + ' model · ' + totalCars + ' xe' + (totalDebt ? ' +' + totalDebt + ' nợ' : '');
+
+  // Render model cards
+  var list = document.getElementById('model-list');
+  if(!models.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div>Không có xe nào phù hợp</div>';
+    return;
+  }
+
+  var html = '';
+  models.forEach(function(m) {
+    var tot = m.stock + m.bo + m.lxx;
+    if(!tot && !m.debt) return;
+    var isOpen = !!openModels[m.name];
+    var bonus = BONUS_MAP[m.name];
+    var bonusBadge = bonus ? '<span class="badge badge-bonus">' + (bonus===1?'1tr':bonus===1.25?'1,25tr':'1,5tr') + '</span>' : '';
+
+    // yr25 count
+    var yr25 = 0;
+    allData.stock.concat(allData.bo).forEach(function(r){
+      if(r.model === m.name && parseInt(r.namSX)===2025 && matchFilter(r)) yr25++;
+    });
+    var yr25Badge = yr25 ? '<span class="badge badge-yr25">\'25: ' + yr25 + '</span>' : '';
+
+    // mini bars
+    var maxV = Math.max(m.stock, m.bo, m.lxx, 1);
+    var barsHtml = '';
+    if(m.stock) barsHtml += '<div class="mini-bar" style="width:' + Math.max(4, Math.round(m.stock/maxV*40)) + 'px;background:var(--c-stock)"></div>';
+    if(m.bo)    barsHtml += '<div class="mini-bar" style="width:' + Math.max(4, Math.round(m.bo/maxV*40))    + 'px;background:var(--c-bo)"></div>';
+    if(m.lxx)   barsHtml += '<div class="mini-bar" style="width:' + Math.max(4, Math.round(m.lxx/maxV*40))  + 'px;background:var(--c-lxx)"></div>';
+
+    var mc = MODEL_COLOR[m.name] || '#6b7a9e';
+    var debtBadge = m.debt ? '<span class="vc vc-debt" style="font-size:10px">+'+m.debt+'</span>' : '';
+
+    // VERSIONS
+    var versionsHtml = '';
+    m.versions.forEach(function(v) {
+      var vtot = v.stock + v.bo + v.lxx;
+      if(!vtot && !v.debt) return;
+      var vKey = m.name + '|' + v.name + '|' + v.namSX;
+      var vOpen = !!openVersions[vKey];
+
+      var yrClass = parseInt(v.namSX)===2025?'yr25':parseInt(v.namSX)===2024?'yr24':parseInt(v.namSX)===2026?'yr26':'';
+      var yrBadge = (v.namSX && parseInt(v.namSX)!==2026) ? '<span class="version-yr '+yrClass+'">'+v.namSX+'</span>' : '';
+
+      var vcHtml = '';
+      if(v.stock) vcHtml += '<span class="vc vc-stock">' + v.stock + '</span>';
+      if(v.bo)    vcHtml += '<span class="vc vc-bo">BO ' + v.bo + '</span>';
+      if(v.lxx)   vcHtml += '<span class="vc vc-lxx">LXX ' + v.lxx + '</span>';
+      if(v.debt)  vcHtml += '<span class="vc vc-debt">Nợ ' + v.debt + '</span>';
+
+      // COLORS
+      var colorsHtml = '';
+      v.colors.forEach(function(c) {
+        var ctot = c.stock + c.bo + c.lxx;
+        if(!ctot && !c.debt) return;
+        var ccHtml = '';
+        if(c.stock) ccHtml += '<span class="vc vc-stock">' + c.stock + '</span>';
+        if(c.bo)    ccHtml += '<span class="vc vc-bo">BO ' + c.bo + '</span>';
+        if(c.lxx)   ccHtml += '<span class="vc vc-lxx">LXX ' + c.lxx + '</span>';
+        if(c.debt)  ccHtml += '<span class="vc vc-debt">Nợ ' + c.debt + '</span>';
+
+        // kho chips
+        var khoDetail = '';
+        var khoStockParts = [], khoBoParts = [], khoLxxParts = [], khoDebtParts = [];
+        BRANCHES.forEach(function(k){
+          var bk = c.byKho[k];
+          if(!bk) return;
+          if(bk.stock) khoStockParts.push('<span class="kho-chip kho-stock">'+k+' '+bk.stock+'</span>');
+          if(bk.bo)    khoBoParts.push('<span class="kho-chip kho-bo">'+k+' '+bk.bo+'</span>');
+          if(bk.lxx)   khoLxxParts.push('<span class="kho-chip kho-lxx">'+k+' '+bk.lxx+'</span>');
+          if(bk.debt)  khoDebtParts.push('<span class="kho-chip kho-debt">'+k+' '+bk.debt+'</span>');
+        });
+        if(khoStockParts.length || khoBoParts.length || khoLxxParts.length || khoDebtParts.length) {
+          khoDetail = '<div class="color-detail">'
+            + khoStockParts.join('') + khoBoParts.join('') + khoLxxParts.join('') + khoDebtParts.join('')
+            + '</div>';
+        }
+
+        colorsHtml += '<div class="color-row">'
+          + '<div class="color-dot" style="background:' + colorDot(c.name) + '"></div>'
+          + '<div style="flex:1;min-width:0">'
+          + '<div style="display:flex;align-items:center;gap:6px">'
+          + '<span class="color-name">' + c.name + '</span>'
+          + '<div class="color-counts">' + ccHtml + '</div>'
+          + '</div>'
+          + khoDetail
+          + '</div>'
+          + '</div>';
+      });
+
+      versionsHtml += '<div class="version-item">'
+        + '<div class="version-header' + (vOpen?' open':'') + '" onclick="toggleVersion(\'' + escKey(vKey) + '\')">'
+        + '<div class="version-name">' + v.name + yrBadge + '</div>'
+        + '<div class="version-counts">' + vcHtml + '</div>'
+        + '<div class="version-chevron">›</div>'
+        + '</div>'
+        + '<div class="colors-wrap' + (vOpen?' open':'') + '" id="col-' + escKey(vKey) + '">'
+        + colorsHtml
+        + '</div>'
+        + '</div>';
+    });
+
+    html += '<div class="model-card" id="mc-' + escKey(m.name) + '">'
+      + '<div class="model-header' + (isOpen?' open':'') + '" onclick="toggleModel(\'' + escKey(m.name) + '\')">'
+      + '<div class="model-icon" style="background:' + mc + '22">'
+      + (MODEL_EMOJI[m.name] || '🚗')
+      + '</div>'
+      + '<div class="model-info">'
+      + '<div class="model-name">' + m.name + '</div>'
+      + '<div class="model-badges">' + bonusBadge + yr25Badge + debtBadge + '</div>'
+      + '</div>'
+      + '<div class="model-stats">'
+      + '<div class="model-total">' + tot + '</div>'
+      + '<div class="model-mini-bars">' + barsHtml + '</div>'
+      + '</div>'
+      + '<div class="model-chevron">›</div>'
+      + '</div>'
+      + '<div class="versions-wrap' + (isOpen?' open':'') + '" id="vw-' + escKey(m.name) + '">'
+      + versionsHtml
+      + '</div>'
+      + '</div>';
+  });
+
+  list.innerHTML = html;
+}
+
+// ════════════════════════════════════════
+// TOGGLE ACCORDION
+// ════════════════════════════════════════
+function escKey(k) { return k.replace(/[^a-zA-Z0-9]/g, function(c){ return '_'+c.charCodeAt(0)+'_'; }); }
+
+function toggleModel(key) {
+  // Decode original name from openModels
+  var origKey = null;
+  var models = buildHierarchy();
+  models.forEach(function(m){ if(escKey(m.name) === key) origKey = m.name; });
+  if(!origKey) return;
+
+  openModels[origKey] = !openModels[origKey];
+
+  var hdr = document.querySelector('#mc-' + key + ' .model-header');
+  var vw  = document.getElementById('vw-' + key);
+  if(hdr) hdr.classList.toggle('open', !!openModels[origKey]);
+  if(vw)  vw.classList.toggle('open', !!openModels[origKey]);
+}
+
+function toggleVersion(key) {
+  // Find original key
+  var origKey = null;
+  var models = buildHierarchy();
+  models.forEach(function(m){
+    m.versions.forEach(function(v){
+      var vk = m.name + '|' + v.name + '|' + v.namSX;
+      if(escKey(vk) === key) origKey = vk;
+    });
+  });
+  if(!origKey) return;
+
+  openVersions[origKey] = !openVersions[origKey];
+
+  var hdrs = document.querySelectorAll('.version-header');
+  hdrs.forEach(function(h){
+    if(h.getAttribute('onclick') && h.getAttribute('onclick').includes(key)){
+      h.classList.toggle('open', !!openVersions[origKey]);
+    }
+  });
+  var cw = document.getElementById('col-' + key);
+  if(cw) cw.classList.toggle('open', !!openVersions[origKey]);
+}
+
+// ════════════════════════════════════════
+// START
+// ════════════════════════════════════════
+loadData();
+</script>
+</body>
+</html>
