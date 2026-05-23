@@ -343,7 +343,7 @@ const BRANCHES_BH = ['NT','PR','PY','ĐL','BL','ĐN'];
 const BC = {BL:'#7e5ea8',ĐL:'#d4693a',ĐN:'#f1948a',NT:'#4a90d9',PR:'#d4ac0d',PY:'#82c9a0'};
 var BRANCHES = ['NT','ĐL','PY','PR','BL','ĐN'];
 var MODEL_ORDER = ['Grand i10','Venue','Accent','Elantra','Creta','Tucson','Stargazer','Custin','Santafe','Ioniq','Palisade','Staria'];
-var MODEL_COLORS = {'Grand i10':'#3b82f6','Venue':'#8b5cf6','Accent':'#2563eb','Elantra':'#0891b2','Creta':'#10b981','Tucson':'#f59e0b','Stargazer':'#7c3aed','Custin':'#ec4899','Santafe':'#e11d48','Ioniq':'#06b6d4','Palisade':'#dc2626','Staria':'#6366f1','Khác':'#9ca3af'};
+var MODEL_COLORS = {'Grand i10':'#7eb8d4','Venue':'#8ecfc9','Accent':'#5b9bd5','Elantra':'#6baed6','Creta':'#74c2b0','Tucson':'#81b8d4','Stargazer':'#9db8d8','Custin':'#a8c8cc','Santafe':'#6595b8','Ioniq':'#5bb8c4','Palisade':'#7a9fc0','Staria':'#89afc8','Khác':'#b0c4cc'};
 var KHO_LABEL = {NT:'Nha Trang','ĐL':'Đà Lạt',DL:'Đà Lạt',PY:'Phú Yên',PR:'Phan Rang',BL:'Bảo Lộc','ĐN':'Đak Nông',DN:'Đak Nông'};
 var BD1_COLORS = {NT:'#1a6fc4',ĐL:'#e24b4a',PY:'#ef9f27',PR:'#8b5cf6',BL:'#f59e0b',ĐN:'#10b981'};
 var BRANCH_NAMES = {BL:'Bảo Lộc',NT:'Nha Trang',ĐL:'Đà Lạt',PR:'Phan Rang',ĐN:'Đak Nông',PY:'Phú Yên'};
@@ -375,7 +375,7 @@ function na2(s){return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'')
 function col(keys,kws){return keys.find(k=>kws.some(w=>na(k).includes(na(w))))||null;}
 function isoWeek(d){const t=new Date(d);t.setHours(0,0,0,0);t.setDate(t.getDate()+4-(t.getDay()||7));const y=t.getFullYear(),s=new Date(y,0,4);return {year:y,week:Math.ceil((((t-s)/864e5)+1)/7)};}
 function wKey(d){const {year,week}=isoWeek(d);return `${year}-W${String(week).padStart(2,'0')}`;}
-const _NM_BH=[['GRAND I10','Grand i10'],['STARGAZER','Stargazer'],['SANTA','Santa Fe'],['PALISADE','Palisade'],['TUCSON','Tucson'],['ACCENT','Accent'],['ELANTRA','Elantra'],['CUSTIN','Custin'],['CRETA','Creta'],['VENUE','Venue'],['IONIQ','Ioniq'],['STARIA','Staria']];
+const _NM_BH=[['GRAND I10','Grand i10'],['STARGAZER','Stargazer'],['SANTA','Santafe'],['PALISADE','Palisade'],['TUCSON','Tucson'],['ACCENT','Accent'],['ELANTRA','Elantra'],['CUSTIN','Custin'],['CRETA','Creta'],['VENUE','Venue'],['IONIQ','Ioniq'],['STARIA','Staria']];
 function normModelBH(m){
   const s=String(m).toUpperCase();
   for(const [k,v] of _NM_BH) if(s.includes(k)) return v;
@@ -1029,6 +1029,9 @@ function renderMonthlyWithFilter(){
     // Reset legend to branches
     document.getElementById('monthly-legend').innerHTML=
       BRANCHES_BH.map(function(b){return '<div class="legend-item"><div class="legend-dot" style="background:'+BC[b]+'"></div>'+b+'</div>';}).join('');
+    // Reset title
+    var titleEl=document.querySelector('.card.chart-monthly .card-title');
+    if(titleEl) titleEl.innerHTML='2. Ký hợp đồng hàng tháng <div class="badge" id="week-badge">Tuần '+(window._D?window._D.curW:'—')+'</div>';
     renderMonthly(data);
     return;
   }
